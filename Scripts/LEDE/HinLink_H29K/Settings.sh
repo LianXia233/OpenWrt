@@ -10,11 +10,6 @@
 # See /LICENSE for more information.
 #
 
-# 修改默认IP
-#sed -i 's/192.168.1.1/192.168.50.5/g' package/base-files/files/bin/config_generate
-
-# Modify default theme
-#sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
 # 修改默认主机名
 sed -i "/hostname/s/'LEDE'/'H29K'/g" package/base-files/files/bin/config_generate
 
@@ -63,22 +58,8 @@ sed -i 's/0666/0644/g;s/0777/0755/g' feeds/packages/net/samba4/files/smb.conf.te
 sed -i '$a net.netfilter.nf_conntrack_max=65535' package/base-files/files/etc/sysctl.conf
 
 # 显示增加编译时间
-# if [ "${REPO_BRANCH#*-}" = "23.05" ]; then
-#    sed -i "s/DISTRIB_DESCRIPTION=.*/DISTRIB_DESCRIPTION=\"LEDE R$(TZ=UTC-8 date +'%y.%-m.%-d') (By @aaaol build $(TZ=UTC-8 date '+%Y-%m-%d %H:%M'))\"/g"  package/base-files/files/etc/openwrt_release
-#    echo -e "\e[41m当前写入的编译时间:\e[0m \e[33m$(grep 'DISTRIB_DESCRIPTION' package/base-files/files/etc/openwrt_release)\e[0m"
-# else
-#    sed -i "s/DISTRIB_DESCRIPTION=.*/DISTRIB_DESCRIPTION=\"LEDE By @aaaol\"/g"  package/base-files/files/etc/openwrt_release
-#    sed -i "s/OPENWRT_RELEASE=.*/OPENWRT_RELEASE=\"LEDE R$(TZ=UTC-8 date +'%y.%-m.%-d') (By @aaaol build $(TZ=UTC-8 date '+%Y-%m-%d %H:%M'))\"/g"  package/base-files/files/usr/lib/os-release
-#    echo -e "\e[41m当前写入的编译时间:\e[0m \e[33m$(grep 'OPENWRT_RELEASE' package/base-files/files/usr/lib/os-release)\e[0m"
-# fi
-
 sed -i "s|DISTRIB_DESCRIPTION=.*|DISTRIB_DESCRIPTION=\"LEDE R$(TZ=UTC-8 date +'%y.%m.%d') (By @aaaol build $(TZ=UTC-8 date '+%Y-%m-%d %H:%M'))\"|g" package/base-files/files/etc/openwrt_release
 sed -i "s|OPENWRT_RELEASE=.*|OPENWRT_RELEASE=\"LEDE R$(TZ=UTC-8 date +'%y.%m.%d') (By @aaaol build $(TZ=UTC-8 date '+%Y-%m-%d %H:%M'))\"|g" package/base-files/files/usr/lib/os-release
-
-
-# 固件更新地址
-sed -i '/CPU usage/a\                <tr><td width="33\%"><\%:Compile update\%></td><td><a target="_blank" href="https://github.com/aaaol/OpenWrt/releases">👇查看</a></td></tr>' package/lean/autocore/files/arm/index.htm
-sed -i '/CPU usage/a\                <tr><td width="33%\"><%:Compile update%></td><td><a target="_blank" href="https://github.com/aaaol/OpenWrt/releases">👇查看</a></td></tr>' package/lean/autocore/files/arm/index.htm
 
 echo "========================="
 echo " DIY2 配置完成……"
