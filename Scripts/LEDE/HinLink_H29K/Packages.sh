@@ -13,11 +13,8 @@ UPDATE_PACKAGE() {
 
     # 删除本地可能存在的不同名称的软件包
     for NAME in "${PKG_LIST[@]}"; do
-        # 查找匹配的目录
         echo "搜索目录：$NAME"
         local FOUND_DIRS=$(find ../feeds/luci/ ../feeds/packages/ -maxdepth 3 -type d -iname "*$NAME*" 2>/dev/null)
-
-        # 删除找到的目录
         if [ -n "$FOUND_DIRS" ]; then
             while read -r DIR; do
                 rm -rf "$DIR"
@@ -29,17 +26,17 @@ UPDATE_PACKAGE() {
     done
 
     # 克隆 GitHub 仓库
-    git clone --depth=1 --single-branch --branch $PKG_BRANCH "https://github.com/$PKG_REPO.git" || {
+    git clone --depth=1 --single-branch --branch "$PKG_BRANCH" "https://github.com/$PKG_REPO.git" || {
         echo "克隆仓库失败：$PKG_REPO"
         return
     }
 
     # 处理克隆的仓库
     if [[ $PKG_SPECIAL == "pkg" ]]; then
-        find ./$REPO_NAME/*/ -maxdepth 3 -type d -iname "*$PKG_NAME*" -prune -exec cp -rf {} ./ \;
-        rm -rf ./$REPO_NAME/
+        find "./$REPO_NAME/" -maxdepth 3 -type d -iname "*$PKG_NAME*" -prune -exec cp -rf {} ./ \;
+        rm -rf "./$REPO_NAME/"
     elif [[ $PKG_SPECIAL == "name" ]]; then
-        mv -f $REPO_NAME $PKG_NAME
+        mv -f "$REPO_NAME" "$PKG_NAME"
     fi
 }
 
@@ -47,18 +44,20 @@ UPDATE_PACKAGE() {
 UPDATE_VERSION() {
     local PKG_NAME=$1
     local PKG_MARK=${2:-false}
-    local PKG_FILES=$(find ./ ../feeds/packages/ -maxdepth 3 -type f -wholename "*/$PKG_NAME/Makefile")
+    local PKG_FILES
+    IFS=$'\n' read -rd '' -a PKG_FILES <<< "$(find ./ ../feeds/packages/ -maxdepth 3 -type f -wholename "*/$PKG_NAME/Makefile")"
 
-    if [ -z "$PKG_FILES" ]; then
+    if [ ${#PKG_FILES[@]} -eq 0 ]; then
         echo "$PKG_NAME 未找到!"
         return
     fi
 
     echo -e "\n$PKG_NAME 版本更新开始！"
 
-    for PKG_FILE in $PKG_FILES; do
-        local PKG_REPO=$(grep -Po "PKG_SOURCE_URL:=https://.*github.com/\K[^/]+/[^/]+(?=.*)" $PKG_FILE)
-        local PKG_TAG=$(curl -sL "https://api.github.com/repos/$PKG_REPO/releases" | jq -r "map(select(.prerelease == $PKG_MARK)) | first | .tag_name")
+    for PKG_FILE in "${PKG_FILES[@]}"; do
+        local PKG_REPO=$(grep -Po "PKG_SOURCE_URL:=https://.*github.com/\K[^/]+/[^/]+(?=.*)" "$PKG_FILE")
+        local PKG_TAG=$(curl -sL "https://api.github.com/repos/$PKG_REPO/releases" \
+                        | jq -r "map(select(.prerelease == $PKG_MARK)) | first | .tag_name")
 
         local OLD_VER=$(grep -Po "PKG_VERSION:=\K.*" "$PKG_FILE")
         local OLD_URL=$(grep -Po "PKG_SOURCE_URL:=\K.*" "$PKG_FILE")
@@ -66,9 +65,8 @@ UPDATE_VERSION() {
         local OLD_HASH=$(grep -Po "PKG_HASH:=\K.*" "$PKG_FILE")
 
         local PKG_URL=$([[ $OLD_URL == *"releases"* ]] && echo "${OLD_URL%/}/$OLD_FILE" || echo "${OLD_URL%/}")
-
-        local NEW_VER=$(echo $PKG_TAG | sed -E 's/[^0-9]+/\./g; s/^\.|\.$//g')
-        local NEW_URL=$(echo $PKG_URL | sed "s/\$(PKG_VERSION)/$NEW_VER/g; s/\$(PKG_NAME)/$PKG_NAME/g")
+        local NEW_VER=$(echo "$PKG_TAG" | sed -E 's/[^0-9]+/\./g; s/^\.|\.$//g')
+        local NEW_URL=$(echo "$PKG_URL" | sed "s/\$(PKG_VERSION)/$NEW_VER/g; s/\$(PKG_NAME)/$PKG_NAME/g")
         local NEW_HASH=$(curl -sL "$NEW_URL" | sha256sum | cut -d ' ' -f 1)
 
         echo "旧版本：$OLD_VER $OLD_HASH"
@@ -84,14 +82,14 @@ UPDATE_VERSION() {
     done
 }
 
-# 调用 示例
-UPDATE_PACKAGE "luci-app-tailscale"   "asvow/luci-app-tailscale" "main" ""
-UPDATE_PACKAGE "qmodem"               "FUjr/modem_feeds"        "main" ""
-UPDATE_PACKAGE "vnt"                  "lmq8267/luci-app-vnt"    "main" ""
+# 调用示例
+UPDATE_PACKAGE "luci-app-tailscale"   "asvow/luci-app-tailscale"   "main" ""
+UPDATE_PACKAGE "qmodem"               "FUjr/modem_feeds"           "main" ""
+UPDATE_PACKAGE "vnt"                  "lmq8267/luci-app-vnt"       "main" ""
+UPDATE_PACKAGE "homeproxy"            "immortalwrt/homeproxy"      "main" "name" "homeproxy"
 
-# —— 新增：immortalwrt/homeproxy —— 
-# PKG_SPECIAL 用 "name" 简单重命名目录为 homeproxy
-UPDATE_PACKAGE "homeproxy"            "immortalwrt/homeproxy"   "main" "name" "homeproxy"
+# —— 新增：EasyTier 应用 —— 
+UPDATE_PACKAGE "luci-app-easytier"    "EasyTier/luci-app-easytier" "main" "name" "luci-app-easytier"
 
 # 更新软件包版本
 UPDATE_VERSION "sing-box"
