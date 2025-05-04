@@ -12,5 +12,5 @@
 
 # Add a feed source
 echo 'src-git modem https://github.com/FUjr/modem_feeds.git;main' >>feeds.conf.default
-echo 'src-git homeproxy https://github.com/immortalwrt/homeproxy.git;main' >>feeds.conf.default
+echo 'src-git homeproxy https://github.com/immortalwrt/homeproxy.git;master' >>feeds.conf.default
 echo 'src-git easytier https://github.com/EasyTier/luci-app-easytier.git;main' >>feeds.conf.default
