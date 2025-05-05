@@ -86,10 +86,10 @@ UPDATE_VERSION() {
 UPDATE_PACKAGE "luci-app-tailscale"   "asvow/luci-app-tailscale"   "main" ""
 UPDATE_PACKAGE "qmodem"               "FUjr/modem_feeds"           "main" ""
 UPDATE_PACKAGE "vnt"                  "lmq8267/luci-app-vnt"       "main" ""
-UPDATE_PACKAGE "homeproxy"            "immortalwrt/homeproxy"      "main" "name" "homeproxy"
+UPDATE_PACKAGE "homeproxy"            "immortalwrt/homeproxy"      "master" ""
 
 # —— 新增：EasyTier 应用 —— 
-UPDATE_PACKAGE "luci-app-easytier"    "EasyTier/luci-app-easytier" "main" "name" "luci-app-easytier"
+UPDATE_PACKAGE "luci-app-easytier"    "EasyTier/luci-app-easytier" "main" ""
 
 # 更新软件包版本
 UPDATE_VERSION "sing-box"
