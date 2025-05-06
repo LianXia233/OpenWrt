@@ -72,7 +72,7 @@ jobs:
         sudo apt-get -qq update
         
         echo ">>> 正在安装编译依赖..."
-        curl -s https://build-scripts.lede-project.org/init_build_environment.sh | sudo -E bash -
+        sudo bash -c 'bash <(curl -s https://build-scripts.immortalwrt.org/init_build_environment.sh)' | sudo -E bash -
         
         echo ">>> 正在执行清理..."
         sudo apt-get -qq autoremove --purge
