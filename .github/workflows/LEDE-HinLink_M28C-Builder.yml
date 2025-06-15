@@ -1,0 +1,142 @@
+#
+# https://github.com/P3TERX/Actions-OpenWrt
+#
+# File: .github/workflows/openwrt-builder.yml
+# Description: Build OpenWrt for MangoPi M28C using GitHub Actions
+#
+
+name: LEDE-MangoPi_M28C-Builder
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+
+env:
+  REPO_URL: https://github.com/coolsnowwolf/lede
+  REPO_BRANCH: master
+  CONFIG_FILE: Config/LEDE/MangoPi_M28C.config  # 需改为你M28C用的配置文件路径
+  Feeds_SH: Scripts/LEDE/MangoPi_M28C/Feeds.sh # 需改为M28C专用feeds脚本路径
+  Settings_SH: Scripts/LEDE/MangoPi_M28C/Settings.sh # 可选
+  Packages_SH: Scripts/LEDE/MangoPi_M28C/Packages.sh # 可选
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: 准备完成
+      uses: actions/checkout@main
+
+    - name: 检查服务器配置
+      run: |
+        echo "⚠ 注意GitHub服务器CPU性能有限，插件过多可能失败。"
+        nproc
+        lscpu | grep "Model name"
+        free -h
+        df -h
+
+    - name: 初始化编译环境
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+        build-essential clang flex g++ gawk gcc-multilib gettext git libncurses5-dev \
+        libssl-dev python3-distutils rsync unzip zlib1g-dev file wget libelf-dev \
+        ecj java-propose-classpath python3-setuptools ccache
+
+    - name: 克隆源代码
+      working-directory: /workdir
+      run: |
+        git clone $REPO_URL -b $REPO_BRANCH lede
+        ln -sf /workdir/lede $GITHUB_WORKSPACE/lede
+
+    - name: 加载自定义订阅源
+      run: |
+        [ -e Files ] && cp -rf Files/LEDE/MangoPi_M28C/* lede/
+        mkdir -p lede/package/feeds/custom
+        chmod +x $Feeds_SH
+        cd lede
+        bash $GITHUB_WORKSPACE/$Feeds_SH
+
+    - name: 更新拉取源
+      run: cd lede && ./scripts/feeds update -a
+
+    - name: 安装拉取源
+      run: cd lede && ./scripts/feeds install -a
+
+    - name: 加载自定义配置
+      run: |
+        [ -e "$CONFIG_FILE" ] && mv "$CONFIG_FILE" lede/.config
+        chmod +x $Settings_SH
+        chmod +x $Packages_SH
+        cd lede
+        bash $GITHUB_WORKSPACE/$Settings_SH
+#       bash $GITHUB_WORKSPACE/$Packages_SH
+
+    - name: 下载软件包
+      id: package
+      run: |
+        cd lede
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: 编译固件
+      id: compile
+      run: |
+        cd lede
+        make -j$(nproc) || make -j1 V=s
+        echo "status=success" >> $GITHUB_OUTPUT
+        grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+    - name: 检查空间
+      if: (!cancelled())
+      run: df -hT
+
+    - name: 整理文件
+      id: organize
+      if: env.UPLOAD_FIRMWARE == 'true'
+      run: |
+        cd lede/bin/targets/*/*
+        rm -rf packages *.buildinfo *.json *.manifest
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 上传固件
+      uses: actions/upload-artifact@main
+      if: steps.organize.outputs.status == 'success'
+      with:
+        name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: ${{ env.FIRMWARE }}
+
+    - name: 准备发布说明
+      id: tag
+      if: env.UPLOAD_RELEASE == 'true'
+      run: |
+        echo "release_tag=LEDE-MangoPi_M28C-$(date +"%Y.%m.%d-%H%M%S")" >> $GITHUB_OUTPUT
+        cat <<EOF > release.txt
+        🚀 LEDE MangoPi M28C 编译固件
+        🕒 编译时间: $(date +"%Y-%m-%d %H:%M:%S %Z")
+        🖥 设备: MangoPi M28C
+        🌱 分支: $REPO_BRANCH
+        💻 默认地址: 192.168.1.1 (root / password)
+        EOF
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: 发布固件
+      uses: softprops/action-gh-release@master
+      if: steps.tag.outputs.status == 'success'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: release.txt
+        files: ${{ env.FIRMWARE }}/*
+
